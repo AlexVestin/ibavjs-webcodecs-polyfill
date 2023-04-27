@@ -2,6 +2,8 @@ all: libavjs-webcodecs-polyfill.min.js
 
 libavjs-webcodecs-polyfill.min.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js -m > $@
+	sed -i'' -e 's/\!function(e){/\!function(e){window.LibAVWebCodecs=e();/g' $@
+
 
 better-samples:
 	for i in samples/*/; do \

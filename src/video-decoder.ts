@@ -290,7 +290,7 @@ export class VideoDecoder {
                     }
                 }
             }
-
+            console.log("We have output....", raw);
             const data = new vf.VideoFrame(raw, {
                 format, codedWidth, codedHeight, displayWidth, displayHeight,
                 timestamp

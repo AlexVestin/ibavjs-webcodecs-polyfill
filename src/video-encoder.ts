@@ -296,9 +296,11 @@ export class VideoEncoder {
                 };
 
                 // Possibly scale
-                if (frame.width !== swsOut.width ||
-                    frame.height !== swsOut.height ||
-                    frame.format !== swsOut.format) {
+                const possiblyScale = frame.width !== swsOut.width ||
+                frame.height !== swsOut.height ||
+                frame.format !== swsOut.format;
+                console.log('Possibly scale: ', possiblyScale);
+                if (possiblyScale) {
                     if (frameClone._nonSquarePixels) {
                         frame.sample_aspect_ratio = [
                             frameClone._sar_num,

@@ -23,6 +23,8 @@ let offscreenCanvas: HTMLCanvasElement = null;
 export class VideoFrame {
     constructor(data: CanvasImageSource | BufferSource,
                 init: VideoFrameInit | VideoFrameBufferInit) {
+
+        
         if (data instanceof ArrayBuffer ||
             (<any> data).buffer instanceof ArrayBuffer) {
             this._constructBuffer(<BufferSource> data, <VideoFrameBufferInit> init);
