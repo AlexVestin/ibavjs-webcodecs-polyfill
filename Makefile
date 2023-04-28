@@ -2,10 +2,13 @@ all: libavjs-webcodecs-polyfill.min.js
 
 libavjs-webcodecs-polyfill.js: src/*.ts node_modules/.bin/browserify
 	./src/build.js > $@
+	sed -i 's/function(f){/function(f){window.LibAVWebCodecs=f();/g' $@
+	cp libavjs-webcodecs-polyfill.js ~/clay/monorepo/applications/mineral/clay/clay_app/web/static/external/ffmpeg
 
 libavjs-webcodecs-polyfill.min.js: libavjs-webcodecs-polyfill.js node_modules/.bin/browserify
 	./node_modules/.bin/minify --js < $< > $@
-	sed -i'' -e 's/\!function(e){/\!function(e){window.LibAVWebCodecs=e();/g' $@
+	sed -i 's/\!function(e){/\!function(e){window.LibAVWebCodecs=e();/g' $@
+	cp libavjs-webcodecs-polyfill.min.js ~/clay/monorepo/applications/mineral/clay/clay_app/web/static/external/ffmpeg
 
 better-samples:
 	for i in samples/*/; do \

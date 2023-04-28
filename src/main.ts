@@ -55,9 +55,9 @@ export async function load(options: {
             libavOptions.noworker = true;
 
             // Load libav
-            LibAV = <any> {base: "https://unpkg.com/libav.js@3.10.5"};
+            LibAV = <any> {base: "static/external/ffmpeg/libav-3.10.5.1.2"};
             const scr = document.createElement("script");
-            scr.src = "https://unpkg.com/libav.js@3.10.5/libav-3.10.5.1.2-webm-opus-flac.js";
+            scr.src = "static/external/ffmpeg/libav-3.10.5.1.2-mediarecorder-openh264.wasm.js";
             scr.onload = res;
             scr.onerror = rej;
             document.body.appendChild(scr);

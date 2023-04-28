@@ -34,7 +34,7 @@ export class VideoDecoder {
 
         this._p = Promise.all([]);
         this._libav = null;
-        this._codec = this._c = this._pkt = this._frame = 0;
+        this._codec = this._c = this._pkt = this._frame = this._swsCtx = this._swsFrame = 0;   
     }
 
     /* NOTE: These should technically be readonly, but I'm implementing them as
@@ -54,6 +54,10 @@ export class VideoDecoder {
     private _c: number;
     private _pkt: number;
     private _frame: number;
+
+    // conversions
+    private _swsCtx: number;
+    private _swsFrame: number;
 
     configure(config: VideoDecoderConfig): void {
         const self = this;
@@ -107,6 +111,13 @@ export class VideoDecoder {
             await this._libav.ff_free_decoder(this._c, this._pkt, this._frame);
             this._codec = this._c = this._pkt = this._frame = 0;
         }
+
+        if (this._swsCtx) {
+            await this._libav.av_frame_free_js(this._swsFrame);
+            await this._libav.sws_freeContext(this._swsCtx);
+            this._swsCtx = this._swsFrame = 0;
+        }
+
         if (this._libav) {
             libavs.free(this._libav);
             this._libav = null;
@@ -187,12 +198,18 @@ export class VideoDecoder {
                     packet.durationhi = 0;
                 }
 
-                decodedOutputs = await libav.ff_decode_multi(c, pkt, frame, [packet]);
+                const ret = await libav.ff_decode_multi_and_scale(c, pkt, frame, self._swsFrame, self._swsCtx, libav.AV_PIX_FMT_RGBA, [packet]);
+                decodedOutputs = ret.frames;
+                self._swsFrame = ret.swsFrame;
+                self._swsCtx = ret.swsCtx;
+
+                // decodedOutputs = await libav.ff_decode_multi(c, pkt, frame, [packet]);
 
             /* 2. If decoding results in an error, queue a task on the control
              * thread event loop to run the Close VideoDecoder algorithm with
              * EncodingError. */
             } catch (ex) {
+                console.log('Decoder error: ', ex)
                 self._p = self._p.then(() => {
                     self._closeVideoDecoder(ex);
                 });
@@ -213,7 +230,7 @@ export class VideoDecoder {
         }).catch(this._error);
     }
 
-    private _outputVideoFrames(frames: LibAVJS.Frame[]) {
+    private async _outputVideoFrames(frames: LibAVJS.Frame[])  {
         const libav = this._libav;
 
         for (const frame of frames) {
@@ -259,7 +276,7 @@ export class VideoDecoder {
             // Check for non-square pixels
             let displayWidth = codedWidth;
             let displayHeight = codedHeight;
-            if (frame.sample_aspect_ratio[0]) {
+            if (frame.sample_aspect_ratio && frame.sample_aspect_ratio[0]) {
                 const sar = frame.sample_aspect_ratio;
                 if (sar[0] > sar[1])
                     displayWidth = ~~(codedWidth * sar[0] / sar[1]);
@@ -284,21 +301,21 @@ export class VideoDecoder {
                     vssfs.push(vf.verticalSubSamplingFactor(format, i));
                 }
                 for (let i = 0; i < planes; i++) {
-                    size += frame.width * frame.height * sbs[i] / hssfs[i]
-                        / vssfs[i];
+                    size += frame.width * frame.height * sbs[i] / hssfs[i]/ vssfs[i];
                 }
                 raw = new Uint8Array(size);
                 let off = 0;
                 for (let i = 0; i < planes; i++) {
                     const fd = frame.data[i];
                     for (let j = 0; j < frame.height / vssfs[i]; j++) {
-                        const part = fd[j].subarray(0, frame.width / hssfs[i]);
+                        const part = fd[j].subarray(0, frame.width * sbs[i] / hssfs[i]);
+
+                
                         raw.set(part, off);
                         off += part.length;
                     }
                 }
             }
-            console.log("We have output....", raw);
             const data = new vf.VideoFrame(raw, {
                 format, codedWidth, codedHeight, displayWidth, displayHeight,
                 timestamp
@@ -325,7 +342,10 @@ export class VideoDecoder {
             let decodedOutputs: LibAVJS.Frame[] = null;
 
             try {
-                decodedOutputs = await libav.ff_decode_multi(c, pkt, frame, [], true);
+                const ret = await libav.ff_decode_multi_and_scale(c, pkt, frame, this._swsFrame, this._swsCtx, libav.AV_PIX_FMT_RGBA, [], true);
+                decodedOutputs = ret.frames;
+                this._swsFrame = ret.swsFrame;
+                this._swsCtx = ret.swsCtx;
             } catch (ex) {
                 self._p = self._p.then(() => {
                     self._closeVideoDecoder(ex);
